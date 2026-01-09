@@ -33,3 +33,4 @@ htmlcov/
 # Misc
 *.pem
 secrets/
+celerybeat-schedule
