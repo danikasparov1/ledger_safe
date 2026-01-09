@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: ledger_safe
+          POSTGRES_USER: ledger
+          POSTGRES_PASSWORD: ledger
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io docker-compose
+
+      - name: Build and run stack
+        run: |
+          docker compose up --build -d
+          # wait for web service to become healthy (simple sleep)
+          sleep 8
+
+      - name: Run tests
+        run: |
+          docker compose exec -T web python manage.py test --keepdb
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose down -v

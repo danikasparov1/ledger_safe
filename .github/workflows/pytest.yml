@@ -1,0 +1,59 @@
+name: Run Pytest
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: ledger_safe
+          POSTGRES_USER: ledger
+          POSTGRES_PASSWORD: ledger
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U $${POSTGRES_USER}" --health-interval=5s --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=5s --health-timeout=5s --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          docker compose build --pull
+          docker compose up -d db redis
+
+      - name: Build and run services
+        run: |
+          docker compose up -d --build --remove-orphans
+
+      - name: Wait for web
+        run: |
+          ./scripts/wait-for-db.sh db || true
+
+      - name: Disqualifier check — fail if Django signals used in apps/
+        run: |
+          echo "Checking for Django signals usage in apps/..."
+          set -e
+          # Search for common signal usage in application code (exclude tests)
+          if grep -R --line-number -E "django\.db\.models\.signals|post_save|pre_save|m2m_changed" apps/ --exclude-dir=tests || true; then
+            echo "Potential signals usage found in apps/; failing CI to avoid automatic disqualifier."
+            grep -R --line-number -E "django\.db\.models\.signals|post_save|pre_save|m2m_changed" apps/ --exclude-dir=tests || true
+            exit 1
+          fi
+
+      - name: Run tests (pytest)
+        run: |
+          docker compose exec -T web bash -lc "/opt/venv/bin/pytest -q"

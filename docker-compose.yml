@@ -1,0 +1,60 @@
+services:
+  web:
+    build: .
+    command: ["./scripts/wait-for-db.sh", "db", "sh", "-c", "python manage.py migrate && daphne -b 0.0.0.0 -p 8000 config.asgi:application"]
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.example
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  worker:
+    build: .
+    command: celery -A config.celery:app worker --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env.example
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  beat:
+    build: .
+    command: celery -A config.celery:app beat --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env.example
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ledger_safe
+      POSTGRES_USER: ledger
+      POSTGRES_PASSWORD: ledger
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=62.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ledger-safe"
+version = "0.1.0"
+description = "Failure-driven backend system for ledger-safe payouts"
+authors = [{name = "Daniel Tibebu"}]
+requires-python = ">=3.11"
+dependencies = [
+    "Django>=4.2,<5.0",
+    "djangorestframework>=3.14",
+    "psycopg2-binary>=2.9",
+    "celery>=5.3",
+    "redis>=5.0",
+    "channels>=4.0",
+    "channels-redis>=4.1",
+    "daphne>=4.0",
+]
