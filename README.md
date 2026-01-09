@@ -232,8 +232,14 @@ This repository has been reviewed against the assignment's automatic disqualifie
 Including this explicit mapping in the README makes it straightforward for reviewers to confirm the repository meets the assignment's automatic disqualifiers.
 
 ## 19. Final notes on reviewers’ expectations
-When reviewers evaluate your submission, they will expect:
-
-- Clear evidence that financial operations are safe under failure (tests + DB constraints + reasoning in README).
-- Reproducible instructions to run and inspect the system (docker compose commands and test commands above).
-- Concise mapping from failure scenarios in the assignment to the behavior and recovery steps in the codebase.
+Safety Evidence: See tests: apps/payouts/tests/test_exactly_once.py, apps/ledger/tests/test_invariants.py. Database invariants are implemented in apps/ledger/migrations/0001_initial.py.
+Reproducibility: Start the stack and run migrations:
+docker compose up -d --build
+docker compose exec web python manage.py migrate
+Run unit tests: pytest -q (integration tests in tests/integration are gated and run intentionally).
+Failure Mapping: See the Failure Model section in README.md which maps each assignment failure scenario to code locations and recovery steps (projector, outbox, idempotency keys, task guards).
+Where to Verify: Review branch feature/prepare-submission, tag v1.0.0, and CI runs in the Actions tab.
+Reviewer Checklist:
+Confirm payout execution is idempotent by inspecting tasks.py.
+Confirm double-entry constraint triggers exist in apps/ledger/migrations/0001_initial.py.
+Run pytest and confirm green checks in GitHub Actions.
